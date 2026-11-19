@@ -1,14 +1,32 @@
 # 副屏监视器
 
-macOS 副屏仪表盘。上方通过指针表盘显示 CPU、GPU 和内存负载，下方按重置时间排列 Codex 与 Claude Code 的剩余额度。所有设置都在主屏完成。
+把一块外接屏变成经典 Macintosh 风格的仪表盘。抬眼看指针，就能读到 CPU、GPU 和内存负载，往下看翻页时刻表，就知道 Codex 和 Claude Code 各剩多少额度、哪一项最先重置。
 
-按下方的[本地构建](#本地构建)步骤启动应用，在主屏选择副屏、外观和显示模块，点 **启用专用显示**。设置会自动保存，下次启动时按显示器 UUID 恢复所选副屏。
+**[下载 macOS 应用](https://github.com/ldk-tokyo/macintosh-display-monitor/releases/latest)** · macOS 13 或以上 · Apple 芯片与 Intel Mac 通用
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
+  <img src="docs/images/dashboard-classic.png" alt="经典 Macintosh 副屏仪表盘。上方是三个指针表盘和网络吞吐量，下方按重置时间列出 Codex 与 Claude Code 的剩余额度。">
+</picture>
+
+[查看浅色原图](docs/images/dashboard-classic.png) · [查看深色原图](docs/images/dashboard-dark.png)
+
+效果图由应用的副屏页面渲染，采用 16∶9、特大字号和 0% 留白。图中使用示例数据，琥珀色行标出下一次重置。
+
+## 安装与首次使用
+
+1. 在发布页下载文件名以 `macOS-universal.zip` 结尾的压缩包，解压后将 **副屏监视器.app** 拖入「应用程序」。
+2. 双击打开。v1.0.0 采用临时签名，未经 Apple 公证。如果 macOS 拦截首次打开，确认下载来源后，在「系统设置 → 隐私与安全性」找到本次拦截记录，选择「仍要打开」。
+3. 将外接屏设为扩展显示，在主屏打开监视器设置，选中目标副屏、外观和显示模块，点 **启用专用显示**。
+4. 需要每天自动恢复时，打开 **登录时自动启动**。下次登录会沿用上次的副屏和显示模式。
+
+硬件仪表可以单独使用。要显示额度，请在这台 Mac 上安装并登录相应的 Codex CLI 或 Claude Code。
 
 ## 经典 Macintosh 外观
 
 浅色模式用同一暖灰底色和深色文字呈现硬件仪表与额度时刻表，两区各有细框。深色模式采用石墨灰底与暖白文字。两种模式均以琥珀色突出最近重置的额度窗口。具体色值见 [显示页面](Resources/Dashboard.html) 顶部的主题变量。
 
-2026-11-20 确认统一指针表盘为正式图标。Finder、Dock、菜单栏、主屏设置和副屏标题均使用同一份[表盘矢量源文件](Resources/Gauge.svg)。
+Finder、Dock、菜单栏、主屏设置和副屏标题均使用同一份[表盘矢量源文件](Resources/Gauge.svg)。
 
 ## 显示与退出
 
@@ -37,7 +55,7 @@ macOS 副屏仪表盘。上方通过指针表盘显示 CPU、GPU 和内存负载
 
 ## 本地构建
 
-需要 macOS 13 或以上和含 Swift 编译器的 Xcode Command Line Tools。本机产物按构建机器架构编译并临时签名。
+需要 macOS 13 或以上和含 Swift 编译器的 Xcode Command Line Tools。默认构建当前 Mac 架构的应用。发布用的通用版本可用 `./build.sh --universal` 构建。两种构建都采用临时签名。
 
 ```sh
 ./build.sh
