@@ -1,9 +1,28 @@
 import AppKit
 import SwiftUI
 
+struct CanvasSize: Hashable {
+    let width: Int
+    let height: Int
+    var label: String { "\(width) × \(height)" }
+
+    init(_ width: Int, _ height: Int) {
+        self.width = width
+        self.height = height
+    }
+
+    static let presets = [
+        CanvasSize(800, 480), CanvasSize(1024, 600), CanvasSize(1024, 768),
+        CanvasSize(1280, 720), CanvasSize(1280, 800), CanvasSize(1920, 1080),
+        CanvasSize(1920, 1200), CanvasSize(2560, 1440), CanvasSize(3440, 1440),
+        CanvasSize(3840, 2160), CanvasSize(720, 1280), CanvasSize(1080, 1920)
+    ]
+}
+
 struct ScreenChoice: Identifiable, Equatable {
     let id: String
     let name: String
+    let size: CanvasSize
 }
 
 final class Monitor: ObservableObject {
@@ -29,9 +48,14 @@ final class Monitor: ObservableObject {
     @Published var selected: String {
         didSet {
             defaults.set(selected, forKey: "screen")
-            if oldValue != selected && enabled { reconcile() }
+            if oldValue != selected {
+                canvasOverride = nil
+                if enabled { reconcile() }
+            }
         }
     }
+    @Published var canvasOverride: CanvasSize? { didSet { publish() } }
+    var selectedScreen: ScreenChoice? { choices.first { $0.id == selected } }
     @Published var dark: Bool { didSet { defaults.set(dark, forKey: "dark"); publish() } }
     @Published var safeMargin: Int {
         didSet { defaults.set(safeMargin, forKey: "safeMargin"); publish() }
@@ -76,7 +100,9 @@ final class Monitor: ObservableObject {
     }
     func screensChanged() {
         choices = NSScreen.screens.filter(\.eligible).map {
-            ScreenChoice(id: $0.stableID, name: "\($0.localizedName) · \(Int($0.frame.width)) × \(Int($0.frame.height))")
+            let size = CanvasSize(Int(($0.frame.width * $0.backingScaleFactor).rounded()),
+                                  Int(($0.frame.height * $0.backingScaleFactor).rounded()))
+            return ScreenChoice(id: $0.stableID, name: $0.localizedName, size: size)
         }
         if !enabled && selected.isEmpty && choices.count == 1 { selected = choices[0].id }
         reconcile()
@@ -92,6 +118,7 @@ final class Monitor: ObservableObject {
         }
         if display.id == screen.displayID && display.screenUUID == screen.stableID {
             display.updateFrame(screen)
+            publish()
             return
         }
         do {
@@ -120,7 +147,7 @@ final class Monitor: ObservableObject {
     }
     func disable(message: String = "专用显示已关闭") {
         enabled = false; defaults.set(false, forKey: "enabled")
-        suspend(); displayStatus = message
+        suspend(); canvasOverride = nil; displayStatus = message
     }
     func suspend() {
         restoreTimer?.invalidate()
@@ -186,7 +213,12 @@ final class Monitor: ObservableObject {
             if let updated = result.updated { item["updated"] = updated.timeIntervalSince1970 }
             return item
         }
-        display.dashboard?.submit(["dark": dark, "margin": safeMargin, "textSize": textSize, "metrics": metrics.payload, "modules": Array(modules), "sources": sources])
+        var state: [String: Any] = ["dark": dark, "margin": safeMargin, "textSize": textSize, "metrics": metrics.payload,
+                                    "modules": Array(modules), "sources": sources]
+        if let size = canvasOverride ?? selectedScreen?.size {
+            state["canvas"] = ["width": size.width, "height": size.height]
+        }
+        display.dashboard?.submit(state)
     }
 }
 
@@ -211,8 +243,16 @@ struct SettingsView: View {
                         if !monitor.choices.contains(where: { $0.id == monitor.selected }) {
                             Text(monitor.selected.isEmpty ? "请选择副屏" : "所选副屏未连接").tag(monitor.selected)
                         }
-                        ForEach(monitor.choices) { Text($0.name).tag($0.id) }
+                        ForEach(monitor.choices) { Text("\($0.name) · \($0.size.label)").tag($0.id) }
                     }
+                    Picker("画布分辨率", selection: $monitor.canvasOverride) {
+                        Text(monitor.selectedScreen.map { "跟随副屏 · \($0.size.label)" } ?? "跟随副屏")
+                            .tag(nil as CanvasSize?)
+                        ForEach(CanvasSize.presets, id: \.self) { size in
+                            Text(size.label).tag(Optional(size))
+                        }
+                    }
+                    .disabled(monitor.selectedScreen == nil)
                     HStack {
                         Text(monitor.displayStatus).foregroundStyle(.secondary)
                         Spacer()

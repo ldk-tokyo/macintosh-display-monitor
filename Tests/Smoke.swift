@@ -14,9 +14,61 @@ enum Smoke {
         do { try run() }
         catch { fputs("FAIL: \(error.localizedDescription)\n", stderr); exit(1) }
     }
+    static func checkCanvas() throws {
+        let dashboard = Dashboard()
+        dashboard.view.frame = CGRect(x: 0, y: 0, width: 1280, height: 720)
+        try dashboard.load()
+        func evaluate(_ script: String) throws -> String {
+            var result: String?
+            dashboard.view.evaluateJavaScript(script) { value, error in
+                result = value as? String ?? error?.localizedDescription ?? "缺少结果"
+            }
+            let deadline = Date().addingTimeInterval(5)
+            while result == nil && Date() < deadline { wait(0.03) }
+            guard let result else { throw SourceError("WebKit 超时") }
+            return result
+        }
+        let deadline = Date().addingTimeInterval(5)
+        while try evaluate("typeof window.monitor") != "object" && Date() < deadline { wait(0.05) }
+        for size in CanvasSize.presets {
+            let result = try evaluate("""
+                (() => {
+                  const canvas={width:\(size.width),height:\(size.height)};
+                  const rows=Array.from({length:12},(_,i)=>({provider:'Codex',window:'每周',remaining:50,reset:Date.now()/1000+600+i}));
+                  for(const margin of [0,10]) {
+                    monitor.render({canvas, margin, textSize:155, modules:['cpu','gpu','memory','network','Codex'],
+                      metrics:{cpu:35,gpu:88,memory:60,usedGB:18,totalGB:32,download:20,upload:30},sources:[{provider:'Codex',rows}]});
+                    const main=document.querySelector('main').getBoundingClientRect();
+                    const fit=Math.min(innerWidth/canvas.width,innerHeight/canvas.height), extent=1-margin/50;
+                    if(Math.abs(main.width-canvas.width*fit*extent)>1 || Math.abs(main.height-canvas.height*fit*extent)>1 ||
+                       Math.abs(main.left+main.right-innerWidth)>1 || Math.abs(main.top+main.bottom-innerHeight)>1) return '画布未居中适配';
+                    const body=document.querySelector('tbody');
+                    if(!body.rows.length || body.getBoundingClientRect().bottom>document.querySelector('.ledger-space').getBoundingClientRect().bottom+1) return '额度分页溢出';
+                    if(!document.querySelector('.time-zone').textContent || document.body.textContent.includes('副屏专用显示')) return '页脚内容错误';
+                  }
+                  return 'PASS';
+                })()
+                """)
+            try expect(result == "PASS", "\(size.label) · \(result)")
+        }
+        let domain = "monitor.test.canvas." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: domain)!
+        defer { defaults.removePersistentDomain(forName: domain) }
+        let monitor = Monitor(defaults: defaults)
+        monitor.screensChanged()
+        try expect(monitor.canvasOverride == nil, "初始画布应跟随所选副屏")
+        monitor.canvasOverride = CanvasSize(1024, 768)
+        monitor.selected = "another-display"
+        try expect(monitor.canvasOverride == nil, "更换目标应跟随新副屏")
+        monitor.canvasOverride = CanvasSize(1280, 800)
+        monitor.disable()
+        try expect(monitor.canvasOverride == nil, "再次开启应跟随副屏")
+        print("Canvas fit, pagination, footer and default selection: PASS")
+    }
     static func run() throws {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory); app.finishLaunching()
+        try checkCanvas()
         if CommandLine.arguments.contains("--login-item") {
             try expect(Bundle.main.bundleIdentifier == "local.dingkun.MacintoshMonitor.smoke", "需要独立测试应用")
             let item = LoginItem()
@@ -175,6 +227,24 @@ enum Smoke {
         first.screensChanged()
         first.enable() // Exercise the same controller as the main-screen button.
         try expect(first.enabled && first.display.id == id, "设置未启用副屏")
+        let physicalSize = CanvasSize(Int((screen.frame.width * screen.backingScaleFactor).rounded()),
+                                      Int((screen.frame.height * screen.backingScaleFactor).rounded()))
+        try expect(first.selectedScreen?.size == physicalSize && first.canvasOverride == nil, "画布默认分辨率不符")
+        let initialMode = CGDisplayCopyDisplayMode(id)?.ioDisplayModeID
+        for selection in [CanvasSize(1024, 768), nil] {
+            first.canvasOverride = selection
+            let expectedWidth = (selection ?? physicalSize).width
+            var matches = false
+            let deadline = Date().addingTimeInterval(5)
+            while !matches && Date() < deadline {
+                first.display.dashboard?.view.evaluateJavaScript("document.querySelector('.canvas')?.offsetWidth") { value, _ in
+                    matches = value as? Int == expectedWidth
+                }
+                wait(0.1)
+            }
+            try expect(matches && CGDisplayCopyDisplayMode(id)?.ioDisplayModeID == initialMode, "切换画布或保持原输出模式失败")
+        }
+        print("\(screen.localizedName) canvas auto \(physicalSize.label), manual switch and system mode: PASS")
         first.shutdown()
         let restored = Monitor(defaults: defaults)
         defer { restored.disable(); restored.shutdown() }

@@ -66,14 +66,14 @@
     const cell=tr.insertCell();cell.colSpan=3;cell.textContent=message;
   }
   let previousLedger='', visiblePage=-1, pages=[];
-  function paginate(entries, now) {
+  function paginate(entries, now, fit) {
     const body=$('tbody');
     body.replaceChildren();
     for (const item of entries) {
       if (item.note) statusRow(body,...item.note);
       else appendRow(body,item.row,now,item.next);
     }
-    const capacity=$('.ledger-space').clientHeight-$('thead').getBoundingClientRect().height-2;
+    const capacity=$('.ledger-space').getBoundingClientRect().height-$('thead').getBoundingClientRect().height-2*fit;
     const groups=[[]];
     let used=0;
     for (const row of body.rows) {
@@ -87,17 +87,24 @@
     }
     return groups;
   }
+  let latestState;
   function render(s) {
+    latestState=s;
     const now=new Date(), modules=new Set(s.modules);
     const root=document.documentElement;
+    const width=s.canvas?.width ?? innerWidth, height=s.canvas?.height ?? innerHeight;
+    if (!width || !height || !innerWidth || !innerHeight) return;
+    const fit=Math.min(innerWidth/width,innerHeight/height);
+    root.style.setProperty('--canvas-w',width+'px');
+    root.style.setProperty('--canvas-h',height+'px');
+    root.style.setProperty('--fit',fit);
     root.dataset.mode=s.dark?'dark':'classic';
     const extent=100-2*(s.margin??0);
-    root.style.setProperty('--safe-w',extent+'vw');
-    root.style.setProperty('--safe-h',extent+'vh');
+    root.style.setProperty('--safe-extent',extent+'%');
     root.style.setProperty('--type',(s.textSize??125)/100);
     $('.clock').textContent=clock.format(now);
     $('.context span').textContent=headerDate.format(now);
-    $('footer span:last-child').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone;
+    $('.time-zone').textContent=Intl.DateTimeFormat().resolvedOptions().timeZone;
     keys.forEach((key,i)=>{
       const value=s.metrics[key],valid=Number.isFinite(value);
       dials[i].hidden=!modules.has(key);
@@ -130,7 +137,7 @@
     const sig=JSON.stringify([entries,label,now.toDateString(),extent,s.textSize,space.clientWidth,space.clientHeight]);
     if(sig!==previousLedger) {
       previousLedger=sig;
-      pages=paginate(entries,now);
+      pages=paginate(entries,now,fit);
       visiblePage=-1;
     }
     const page=Math.floor(now.getTime()/12000)%pages.length;
@@ -140,5 +147,6 @@
       $('.board-title span').textContent=pages.length>1?(page+1)+' / '+pages.length+'　·　'+label:label;
     }
   }
+  window.addEventListener('resize',()=>{ if (latestState) render(latestState); });
   window.monitor={render};
 })();
