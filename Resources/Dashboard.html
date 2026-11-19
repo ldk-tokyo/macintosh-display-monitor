@@ -1,0 +1,38 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>副屏监视器</title><style>
+:root{
+ --desk:#b7b3a9;--shell:#d5d0c3;--shell-ink:#24241f;--highlight:#f0ecdf;--shadow:#918f83;
+ --paper:#f2efe2;--ink:#2d302b;--mark:#565a50;--track:#d1d2c4;--arc:#657262;--needle:#aa4c29;
+ --ledger:var(--paper);--ledger-ink:var(--ink);--soft:var(--mark);--separator:#c2c1b3;
+ --selected:#e8dfc9;--amber:#824019;--slab:#e9e6d9;--slab-bottom:#dedccd;
+ --seam:#b9b8aa;--meter-fill:var(--arc);--frame:2px solid #56594f;--mode:light
+}
+:root[data-mode="dark"]{
+ --desk:#161819;--shell:#313334;--shell-ink:#e6e3d9;--highlight:#525454;--shadow:#242626;
+ --paper:#232626;--ink:#e1e0d6;--mark:#bebeb3;--track:#444948;--arc:#9baca1;--needle:#edaf76;
+ --ledger:#1e2020;--ledger-ink:#e9e7db;--soft:#b9bcb2;--separator:#414544;
+ --selected:#39372e;--amber:#f6c994;--slab:#3b3e3e;--slab-bottom:#2d3030;
+ --seam:#1e2020;--meter-fill:#b5bbae;--frame:1px solid #21231f;--mode:dark
+}
+*{box-sizing:border-box}
+html{font-size:min(1.25vw,2.22222vh);color-scheme:var(--mode);--type:1.25;--safe-w:100vw;--safe-h:100vh}
+body{margin:0;height:100vh;display:grid;place-items:center;background:var(--desk);color:var(--shell-ink);font:calc(1rem * var(--type))/1.18 -apple-system,BlinkMacSystemFont,'PingFang SC',sans-serif;font-variant-numeric:tabular-nums;user-select:none;cursor:none}
+main{width:min(80rem,var(--safe-w));height:min(45rem,var(--safe-h));padding:.68rem .95rem .55rem;background:var(--shell);border:1px solid #20211e;box-shadow:inset .12rem .12rem var(--highlight),inset -.12rem -.12rem var(--shadow);display:flex;flex-direction:column;gap:.45rem}
+header,.title,.spread,.context,.board-title,footer,.balance,.network div{display:flex;align-items:center}
+header{gap:.8rem}.title{gap:.5rem}.gauge-icon{width:1.8rem;height:1.8rem;flex:none;object-fit:contain}:root[data-mode="dark"] .gauge-icon{filter:brightness(0) invert(90%)}.stripes{flex:1;height:.85rem;background:repeating-linear-gradient(to bottom,var(--shell-ink) 0 1px,transparent 1px .205rem);opacity:.63}
+h1,h2,p{margin:0}h1{font-size:1.35em}.context{gap:.85rem;font-size:1em}.clock{font:650 1.54em/1 Menlo,monospace}
+.instrument,.board{border:var(--frame);box-shadow:0 1px var(--highlight)}
+.instrument{background:var(--paper);color:var(--ink)}.faces{display:flex}.dial{flex:1;min-width:0;padding:.58rem .85rem;display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:auto 1fr;align-items:center;column-gap:.45rem}
+.dial+.dial{border-left:1px solid var(--track)}.dial .spread{grid-column:1/-1;gap:.4rem}.spread,.board-title,footer,.balance{justify-content:space-between}.dial h2{font-size:1.18em}.dial small{font-size:.95em;color:var(--ink);font-weight:500}
+.face{grid-column:2;grid-row:2;height:6.65rem}.face svg{display:block;width:100%;height:100%}.number{grid-column:1;grid-row:2;font:650 2.75em/1 Menlo,monospace;letter-spacing:-.07em}.pct{font-size:.5em}
+.network{border-top:1px solid var(--track);padding:.32rem .85rem;font-size:1em}.network div{gap:1.3rem}.network b{margin-left:.35rem}
+.board{min-height:0;background:var(--ledger);color:var(--ledger-ink);flex:1;display:flex;flex-direction:column}
+.board-title{padding:.42rem .85rem;border-bottom:1px solid var(--separator);gap:.5rem}.board-title h2{font-size:1.22em;white-space:nowrap}.board-title span{color:var(--soft);font-size:.88em;text-align:right}
+.ledger-space{flex:1;min-height:0}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{text-align:left;padding:.26rem .7rem;overflow-wrap:anywhere}
+th{font-size:.97em;color:var(--ledger-ink);font-weight:550}td{height:2.45em;border-top:1px solid var(--separator);font-size:1.1em}
+.soon{background:var(--selected);box-shadow:inset .23rem 0 var(--amber)}.next{color:var(--amber);display:block;font-size:.78em;font-weight:600}
+.service{font-weight:640}.flip{display:flex;align-items:center;gap:.08rem;color:var(--ledger-ink)}.soon .flip{color:var(--amber)}
+.flap{position:relative;display:grid;place-items:center;width:.77em;height:1.13em;border-radius:.12rem;background:linear-gradient(var(--slab) 50%,var(--slab-bottom) 50%);font:650 1.73em/1 Menlo,monospace}
+.flap:after{content:'';position:absolute;top:50%;width:100%;height:1px;background:var(--seam)}.colon{font:1.22em/1 Menlo,monospace}
+.balance{gap:.5rem}.balance strong{font:650 1.85em/1 Menlo,monospace;letter-spacing:-.07em}.meter{flex:1;min-width:.4rem;height:.47rem;background:var(--separator)}.meter i{display:block;height:100%;background:var(--meter-fill)}.soon .meter i{background:var(--amber)}.soon .balance strong{color:var(--amber)}
+footer{color:var(--shell-ink);font-size:.86em}.unavailable{color:var(--soft)}[hidden]{display:none!important}
+</style></head><body><main><header><div class="title"><img class="gauge-icon" src="Gauge.svg" alt=""><h1>硬件负载</h1></div><div class="stripes" aria-hidden="true"></div><div class="context"><span></span><time class="clock">--:--</time></div></header><section class="instrument" aria-label="硬件负载"><div class="faces"><section class="dial"><div class="spread"><h2>CPU</h2><small>处理器</small></div><div class="face"><svg viewBox="0 0 240 125"></svg></div><b class="number">—<span class="pct">%</span></b></section><section class="dial"><div class="spread"><h2>GPU</h2><small>图形处理器</small></div><div class="face"><svg viewBox="0 0 240 125"></svg></div><b class="number">—<span class="pct">%</span></b></section><section class="dial"><div class="spread"><h2>内存</h2><small>—</small></div><div class="face"><svg viewBox="0 0 240 125"></svg></div><b class="number">—<span class="pct">%</span></b></section></div><div class="network spread"><strong>网络吞吐</strong><div><span>↓ 下载<b>—</b></span><span>↑ 上传<b>—</b></span></div></div></section><section class="board"><div class="board-title"><h2 id="schedule">额度重置时刻表</h2><span>等待读取</span></div><div class="ledger-space"><table aria-labelledby="schedule"><colgroup><col style="width:14%"><col style="width:21%"><col style="width:23%"><col style="width:20%"><col style="width:22%"></colgroup><thead><tr><th scope="col">重置日期</th><th scope="col">重置时刻</th><th scope="col">服务</th><th scope="col">额度窗口</th><th scope="col">剩余额度</th></tr></thead><tbody></tbody></table></div></section><footer><span>副屏专用显示</span><span></span></footer></main><script src="dashboard.js"></script></body></html>

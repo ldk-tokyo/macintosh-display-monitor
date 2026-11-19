@@ -1,0 +1,7 @@
+.DS_Store
+/dist/
+/work/
+/设计稿/
+/Resources/AppIcon.icns
+.env
+.env.*
