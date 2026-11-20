@@ -88,6 +88,14 @@ enum Smoke {
         try expect(m.cpu != nil && m.memory != nil && m.download != nil, "硬件样本缺失")
         let mock = ClaudeQuota.parse("Current session: 62% used · resets 4:15pm (Asia/Tokyo)\nCurrent week (all models): 36% used · resets Nov 24 at 10am (Asia/Tokyo)\n  95%  unrelated text")
         try expect(mock.count == 2 && mock[0].remaining == 38 && mock.allSatisfy { $0.reset != nil }, "Claude 窗口解析失败")
+        let costOnly: [String: Any] = ["is_error": false, "num_turns": 0, "result": "Estimated cost: $0.0000"]
+        for loggedIn in [false, true, nil] as [Bool?] {
+            let result = QuotaResult.read("Claude Code") {
+                try ClaudeQuota.subscriptionRows(from: costOnly) { loggedIn }
+            }
+            try expect(result.rows.isEmpty && result.message.contains("未登录") == (loggedIn == false),
+                       "Claude 成本报告未按登录状态显示提示")
+        }
         for source in ["Codex", "Claude Code"] {
             let r = QuotaResult.read(source) {
                 if source == "Codex" { return try CodexQuota.load() }

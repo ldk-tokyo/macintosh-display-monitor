@@ -130,14 +130,33 @@ enum ClaudeQuota {
 
     static func load() throws -> [QuotaRow] {
         guard let cli = executable() else { throw SourceError("找不到 Claude Code CLI") }
-        let task = Process(), output = Pipe()
         let work = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: work, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: work) }
+        let usage = try run(cli, in: work, arguments: ["-p", "/usage", "--max-turns", "0", "--tools", "", "--no-session-persistence",
+                                                       "--strict-mcp-config", "--setting-sources", "", "--output-format", "json"])
+        return try subscriptionRows(from: usage) {
+            let status = try? run(cli, in: work, arguments: ["auth", "status", "--json"])
+            return status?["loggedIn"] as? Bool
+        }
+    }
+
+    static func subscriptionRows(from usage: [String: Any], loggedIn: () -> Bool?) throws -> [QuotaRow] {
+        let report = usage["result"] as? String
+        let valid = usage["is_error"] as? Bool == false && usage["num_turns"] as? Int == 0 && report != nil
+        if valid, let report {
+            let rows = parse(report)
+            if !rows.isEmpty { return rows }
+        }
+        if loggedIn() == false { throw SourceError("Claude Code 未登录，请登录订阅账号后刷新") }
+        throw SourceError(valid ? "Claude Code 未返回可识别的订阅额度" : "请检查 Claude Code 的登录与 /usage 命令")
+    }
+
+    private static func run(_ cli: URL, in work: URL, arguments: [String]) throws -> [String: Any] {
+        let task = Process(), output = Pipe()
         task.executableURL = cli
         task.currentDirectoryURL = work
-        task.arguments = ["-p", "/usage", "--max-turns", "0", "--tools", "", "--no-session-persistence", "--strict-mcp-config",
-                          "--setting-sources", "", "--output-format", "json"]
+        task.arguments = arguments
         task.environment = ProcessInfo.processInfo.environment.merging(["TZ": "UTC", "LC_ALL": "en_US.UTF-8"]) { _, new in new }
         task.standardInput = FileHandle.nullDevice
         task.standardOutput = output; task.standardError = FileHandle.nullDevice
@@ -159,12 +178,10 @@ enum ClaudeQuota {
             data.append(contentsOf: bytes.prefix(n))
         }
         guard ended else { throw SourceError("Claude Code 读取超时") }
-        guard let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-              obj["is_error"] as? Bool == false, obj["num_turns"] as? Int == 0,
-              let report = obj["result"] as? String else { throw SourceError("请检查 Claude Code 的登录与 /usage 命令") }
-        let rows = parse(report)
-        guard !rows.isEmpty else { throw SourceError("Claude Code 未返回可识别的订阅额度") }
-        return rows
+        guard let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            throw SourceError("Claude Code 返回格式异常")
+        }
+        return obj
     }
 
     static func parse(_ report: String, now: Date = Date()) -> [QuotaRow] {
