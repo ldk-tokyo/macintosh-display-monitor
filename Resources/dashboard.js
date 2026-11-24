@@ -72,6 +72,7 @@
     for (const item of entries) {
       if (item.note) statusRow(body,...item.note);
       else appendRow(body,item.row,now,item.next);
+      if (item.group) body.rows[body.rows.length-1].classList.add('group');
     }
     const capacity=$('.ledger-space').getBoundingClientRect().height-$('thead').getBoundingClientRect().height-2*fit;
     const groups=[[]];
@@ -122,15 +123,17 @@
     });
     const sources=s.sources.filter(p=>modules.has(p.provider));
     $('.board').hidden=!sources.length;
-    const ordered=[],notes=[];
-    for(const p of sources) {
-      const valid=p.rows.filter(r=>!r.reset||r.reset*1000>now.getTime());
-      ordered.push(...valid);
-      if(!valid.length)notes.push([p.provider,p.rows.length?'窗口已结束，等待读取新额度':p.message]);
-    }
-    ordered.sort((a,b)=>(a.reset??Infinity)-(b.reset??Infinity)||a.provider.localeCompare(b.provider));
     if(!sources.length) { previousLedger='';return; }
-    const entries=[...ordered.map((row,i)=>({row,next:i===0&&!!row.reset})),...notes.map(note=>({note}))];
+    // One block per service, each sorted by reset time; the soonest reset overall is highlighted.
+    const entries=[];
+    for(const p of sources) {
+      const valid=p.rows.filter(r=>!r.reset||r.reset*1000>now.getTime()).sort((a,b)=>(a.reset??Infinity)-(b.reset??Infinity));
+      const group=entries.length>0;
+      if(valid.length) valid.forEach((row,i)=>entries.push({row,group:group&&i===0}));
+      else entries.push({note:[p.provider,p.rows.length?'窗口已结束，等待读取新额度':p.message],group});
+    }
+    const soonest=entries.filter(e=>e.row?.reset).sort((a,b)=>a.row.reset-b.row.reset)[0];
+    if(soonest) soonest.next=true;
     const sync=sources.filter(x=>x.updated).map(x=>x.provider+' '+clock.format(new Date(x.updated*1000)));
     const label=sync.length?'同步　'+sync.join('　·　'):'等待读取';
     const space=$('.ledger-space');

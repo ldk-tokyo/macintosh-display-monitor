@@ -50,7 +50,7 @@ Finder、Dock、菜单栏、主屏设置和副屏标题均使用同一份[表盘
 | Codex | 本机已登录的 Codex CLI，调用 app-server 的 account/rateLimits/read。按登录 shell 的 PATH 查找，支持 npm、Homebrew 等安装方式 |
 | Claude Code | 本机已登录的 Claude Code，通过本地 /usage 命令获取订阅额度。支持常规安装路径及 Claude 桌面端捆绑的 CLI |
 
-按真实返回的窗口展示剩余百分比、重置时刻及模型专属周额度。按重置先后排序，时区跟随系统。每页行数按可用高度和字号计算，多页时每 12 秒轮换。来源不可用或窗口已过期时显示相应状态。设置中可以立即刷新。
+按真实返回的窗口展示剩余百分比、重置时刻及模型专属周额度。Codex 与 Claude Code 各占一段，以粗线分隔，段内按重置先后排序，时区跟随系统。每页行数按可用高度和字号计算，多页时每 12 秒轮换。来源不可用或窗口已过期时显示相应状态。设置中可以立即刷新。
 
 应用要求 Codex CLI 支持 account/rateLimits/read，Claude Code 支持以非交互方式执行 /usage。CLI 的权限与账号由原客户端管理。监视器不读取令牌或保存对话记录。Claude 调用关闭工具、会话保存与项目配置，仅读取零模型轮次的 /usage 报告。
 

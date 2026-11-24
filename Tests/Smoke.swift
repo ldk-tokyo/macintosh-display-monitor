@@ -51,6 +51,21 @@ enum Smoke {
                 """)
             try expect(result == "PASS", "\(size.label) · \(result)")
         }
+        let grouping = try evaluate("""
+            (() => {
+              const t=Date.now()/1000, row=(provider,window,hours)=>({provider,window,remaining:50,reset:t+hours*3600});
+              monitor.render({canvas:{width:1280,height:1440}, margin:0, textSize:100, modules:['Codex','Claude Code'], metrics:{},
+                sources:[{provider:'Codex',rows:[row('Codex','每周',90),row('Codex','5 小时',3)]},
+                         {provider:'Claude Code',rows:[row('Claude Code','每周',40),row('Claude Code','5 小时',1)]}]});
+              const rows=[...document.querySelectorAll('tbody tr')];
+              const seen=rows.map(r=>r.cells[2].textContent+'/'+r.cells[3].textContent).join(' ');
+              if(seen!=='Codex/5 小时 Codex/每周 Claude Code/5 小时 Claude Code/每周') return '顺序 '+seen;
+              if(rows.map(r=>r.classList.contains('group')).join()!=='false,false,true,false') return '分组分隔线位置错误';
+              if(rows.map(r=>r.classList.contains('soon')).join()!=='false,false,true,false') return '未高亮最早重置的窗口';
+              return 'PASS';
+            })()
+            """)
+        try expect(grouping == "PASS", "额度未按服务分组 · \(grouping)")
         let domain = "monitor.test.canvas." + UUID().uuidString
         let defaults = UserDefaults(suiteName: domain)!
         defer { defaults.removePersistentDomain(forName: domain) }
@@ -150,7 +165,7 @@ enum Smoke {
                 let script = """
                   !!window.monitor && document.documentElement.dataset.mode === '\(dark ? "dark":"classic")' &&
                   document.querySelectorAll('tbody tr').length === \(dark ? 1:2) &&
-                  document.querySelector('tbody tr .service')?.textContent === 'Claude Code' &&
+                  document.querySelector('tbody tr .service')?.textContent === '\(dark ? "Claude Code" : "Codex")' &&
                   document.querySelector('.dial').hidden === \(dark) &&
                   document.querySelectorAll('.number')[1].textContent.trim() === '\(m.gpu.map { String(Int($0.rounded())) } ?? "—")%' &&
                   document.querySelector('footer').getBoundingClientRect().bottom <= innerHeight+1
