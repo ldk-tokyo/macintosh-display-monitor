@@ -6,12 +6,12 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
-  <img src="docs/images/dashboard-classic.png" alt="经典 Macintosh 副屏仪表盘。上方是三个指针表盘和网络吞吐量，下方按重置时间列出 Codex 与 Claude Code 的剩余额度。">
+  <img src="docs/images/dashboard-classic.png" alt="经典 Macintosh 副屏仪表盘。上方是三个指针表盘和网络吞吐量，下方分两段列出 Codex 与 Claude Code 的剩余额度，段内按重置时间排序。">
 </picture>
 
 [查看浅色原图](docs/images/dashboard-classic.png) · [查看深色原图](docs/images/dashboard-dark.png)
 
-效果图由应用的副屏页面渲染，采用 16∶9、特大字号和 0% 留白。图中使用示例数据，琥珀色行标出下一次重置。
+效果图由应用的副屏页面渲染，采用 16∶9、特大字号和 0% 留白。图中使用示例数据，琥珀色行标出下一次重置，粗线分隔两个服务。
 
 ## 安装与首次使用
 
