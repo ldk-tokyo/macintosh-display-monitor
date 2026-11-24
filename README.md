@@ -47,7 +47,7 @@ Finder、Dock、菜单栏、主屏设置和副屏标题均使用同一份[表盘
 | GPU | IOKit 驱动公开的设备利用率，多 GPU 取最高值。驱动未提供时显示横杠 |
 | 内存 | Mach VM 内部页、压缩页、有线页和可清除页估算的已用物理内存 |
 | 网络 | 已启用的 en 系列接口实际字节增量，按 MB/s 显示上下行 |
-| Codex | 本机已登录的 Codex CLI，调用 app-server 的 account/rateLimits/read |
+| Codex | 本机已登录的 Codex CLI，调用 app-server 的 account/rateLimits/read。按登录 shell 的 PATH 查找，支持 npm、Homebrew 等安装方式 |
 | Claude Code | 本机已登录的 Claude Code，通过本地 /usage 命令获取订阅额度。支持常规安装路径及 Claude 桌面端捆绑的 CLI |
 
 按真实返回的窗口展示剩余百分比、重置时刻及模型专属周额度。按重置先后排序，时区跟随系统。每页行数按可用高度和字号计算，多页时每 12 秒轮换。来源不可用或窗口已过期时显示相应状态。设置中可以立即刷新。

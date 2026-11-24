@@ -37,18 +37,67 @@ struct QuotaResult {
     }
 }
 
+/// Apps opened from Finder or as a login item inherit PATH=/usr/bin:/bin:/usr/sbin:/sbin.
+/// A CLI installed through npm is a `#!/usr/bin/env node` script and exits at once there,
+/// so child processes get the PATH of the user's login shell plus the usual install folders.
+enum CLIEnvironment {
+    static let searchPath: [String] = {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        var dirs = shellPath()
+        dirs += [".local/bin", ".volta/bin", ".bun/bin", ".npm-global/bin", "Library/pnpm"].map { home + "/" + $0 }
+        dirs += ["/opt/homebrew/bin", "/usr/local/bin"]
+        dirs += (ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin").split(separator: ":").map(String.init)
+        var seen = Set<String>()
+        return dirs.filter { $0.hasPrefix("/") && seen.insert($0).inserted }
+    }()
+
+    static func find(_ name: String, fallbacks: [String] = []) -> URL? {
+        let candidates = searchPath.map { $0 + "/" + name } + fallbacks
+        return candidates.first(where: FileManager.default.isExecutableFile(atPath:)).map { URL(fileURLWithPath: $0) }
+    }
+
+    static func environment(for cli: URL, adding extra: [String: String] = [:]) -> [String: String] {
+        // The interpreter usually sits beside the CLI or beside the file its symlink points to.
+        let dirs = [cli.deletingLastPathComponent().path, cli.resolvingSymlinksInPath().deletingLastPathComponent().path] + searchPath
+        var seen = Set<String>()
+        var env = ProcessInfo.processInfo.environment.merging(extra) { _, new in new }
+        env["PATH"] = dirs.filter { seen.insert($0).inserted }.joined(separator: ":")
+        return env
+    }
+
+    private static func shellPath() -> [String] {
+        let configured = ProcessInfo.processInfo.environment["SHELL"] ?? ""
+        let known = ["zsh", "bash"].contains((configured as NSString).lastPathComponent)
+            && FileManager.default.isExecutableFile(atPath: configured)
+        let task = Process(), output = Pipe()
+        task.executableURL = URL(fileURLWithPath: known ? configured : "/bin/zsh")
+        task.arguments = ["-ilc", "printf '\\n<<PATH:%s>>\\n' \"$PATH\""]
+        task.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
+        task.standardInput = FileHandle.nullDevice
+        task.standardOutput = output; task.standardError = FileHandle.nullDevice
+        guard (try? task.run()) != nil else { return [] }
+        let timeout = DispatchWorkItem { if task.isRunning { task.terminate() } }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5, execute: timeout)
+        let data = output.fileHandleForReading.readDataToEndOfFile()
+        timeout.cancel()
+        guard let text = String(data: data, encoding: .utf8),
+              let start = text.range(of: "<<PATH:", options: .backwards),
+              let end = text.range(of: ">>", range: start.upperBound..<text.endIndex) else { return [] }
+        return text[start.upperBound..<end.lowerBound].split(separator: ":").map(String.init)
+    }
+}
+
 enum CodexQuota {
     static func load() throws -> [QuotaRow] {
         let home = FileManager.default.homeDirectoryForCurrentUser
-        let paths = [home.appendingPathComponent(".local/bin/codex").path, "/opt/homebrew/bin/codex",
-                     "/usr/local/bin/codex", "/Applications/Codex.app/Contents/Resources/codex",
-                     "/Applications/ChatGPT.app/Contents/Resources/codex"]
-        guard let path = paths.first(where: FileManager.default.isExecutableFile(atPath:)) else {
+        guard let cli = CLIEnvironment.find("codex", fallbacks: ["/Applications/Codex.app/Contents/Resources/codex",
+                                                                 "/Applications/ChatGPT.app/Contents/Resources/codex"]) else {
             throw SourceError("找不到 Codex CLI")
         }
         let task = Process(), input = Pipe(), output = Pipe()
-        task.executableURL = URL(fileURLWithPath: path)
+        task.executableURL = cli
         task.arguments = ["app-server"]
+        task.environment = CLIEnvironment.environment(for: cli)
         task.currentDirectoryURL = home
         task.standardInput = input; task.standardOutput = output; task.standardError = FileHandle.nullDevice
         try task.run()
@@ -114,8 +163,7 @@ enum CodexQuota {
 enum ClaudeQuota {
     static func executable() -> URL? {
         let fm = FileManager.default, home = fm.homeDirectoryForCurrentUser
-        let conventional = [home.appendingPathComponent(".local/bin/claude").path, "/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
-        if let found = conventional.first(where: fm.isExecutableFile(atPath:)) { return URL(fileURLWithPath: found) }
+        if let found = CLIEnvironment.find("claude") { return found }
         let root = home.appendingPathComponent("Library/Application Support/Claude/claude-code")
         let versions = (try? fm.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? []
         for version in versions.sorted(by: { $0.lastPathComponent.compare($1.lastPathComponent, options: .numeric) == .orderedDescending }) {
@@ -157,7 +205,7 @@ enum ClaudeQuota {
         task.executableURL = cli
         task.currentDirectoryURL = work
         task.arguments = arguments
-        task.environment = ProcessInfo.processInfo.environment.merging(["TZ": "UTC", "LC_ALL": "en_US.UTF-8"]) { _, new in new }
+        task.environment = CLIEnvironment.environment(for: cli, adding: ["TZ": "UTC", "LC_ALL": "en_US.UTF-8"])
         task.standardInput = FileHandle.nullDevice
         task.standardOutput = output; task.standardError = FileHandle.nullDevice
         try task.run()
